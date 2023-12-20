@@ -16,10 +16,8 @@ Sub StockSummary()
     
     'Variables to hold data throughout function
     Dim LastCell As Long
-    Dim DayStockChange As Double
-    Dim NightStockChange As Double
-    Dim DayPercentChange As Double
-    Dim NightPercentChange As Double
+    Dim FirstOpenStock As Double
+    Dim FinalCloseStock As Double
     Dim Volume As Double
     Dim GreatIncrease As Double
     Dim GreatDecrease As Double
@@ -33,16 +31,14 @@ Sub StockSummary()
     CloseCol = 6
     VolumeCol = 7
     
-    TickerSummary = 1
-    YearlyChange = 1
-    PercentChange = 1
-    TotalVolume = 1
+    TickerSummary = 2
+    YearlyChange = 2
+    PercentChange = 2
+    TotalVolume = 2
     
     LastCell = Cells(Rows.Count, 1).End(xlUp).Row
-    DayStockChange = 0
-    NightStockChange = 0
-    DayPercentChange = 0
-    NightPercentChange = 0
+    FirstOpenStock = 0
+    FinalCloseStock = 0
     Volume = 0
     GreatIncrease = 0
     GreatDecrease = 0
@@ -55,45 +51,49 @@ Sub StockSummary()
     ws.Cells(1, 12).Value = "Total Stock Volume"
     
     ws.Columns("I:L").AutoFit
+    ws.Range("J:J").NumberFormat = "00.00"
     ws.Range("K:K").NumberFormat = "00.00%"
     
-    For i = 2 To 1000
-        'Reached the end of the ticker category, therefore insert name into column with total cumulated stock change, percentage change and total volume
+    For i = 2 To LastCell
+        'Reached the end of the ticker category, therefore find the final stock price and insert name into column with total 
+        'cumulated stock change, percentage change and total volume.
         If ws.Cells(i + 1, TickerCol).Value <> ws.Cells(i, TickerCol).Value Then
-        ws.Cells(TickerSummary + 1, 9).Value = ws.Cells(i, TickerCol).Value
-        ws.Cells(YearlyChange + 1, 10).Value = DayStockChange + NightStockChange
-        ws.Cells(PercentChange + 1, 11).Value = DayPercentChange + NightPercentChange
-        ws.Cells(TotalVolume + 1, 12).Value = Volume
+        FinalCloseStock = ws.Cells(i, CloseCol).Value
+        ws.Cells(TickerSummary, 9).Value = ws.Cells(i, TickerCol).Value
+        ws.Cells(YearlyChange, 10).Value = FinalCloseStock - FirstOpenStock
+        ws.Cells(PercentChange, 11).Value = ws.Cells(YearlyChange, 10).Value / FirstOpenStock
+        ws.Cells(TotalVolume, 12).Value = Volume
         
             'If total change was positive, then the cell is filled in green, otherwise it's filled in red
-            If ws.Cells(PercentChange + 1, 11).Value > 0 Then
-            ws.Cells(PercentChange + 1, 11).Interior.ColorIndex = 4
-            Else: ws.Cells(PercentChange + 1, 11).Interior.ColorIndex = 3
+            If ws.Cells(YearlyChange, 10).Value > 0 Then
+            ws.Cells(YearlyChange, 10).Interior.ColorIndex = 4
+            Else: ws.Cells(YearlyChange, 10).Interior.ColorIndex = 3
             End If
             
-            'If the percent increase was greater than the previous best ticker category, then it's added to the GreatIncTicker variable
-            If ws.Cells(PercentChange + 1, 11).Value > GreatIncrease Then
-            GreatIncrease = ws.Cells(PercentChange + 1, 11).Value
-            GreatIncTicker = ws.Cells(TickerSummary + 1, 9).Value
+            'If the percent increase was greater than the previous best ticker category, then the variables GreatIncrease 
+            'and GreatIncTicker are updated
+            If ws.Cells(PercentChange, 11).Value > GreatIncrease Then
+            GreatIncrease = ws.Cells(PercentChange, 11).Value
+            GreatIncTicker = ws.Cells(TickerSummary, 9).Value
             End If
             
-            'If the percent decrease was less than the previous worst ticker category, then it's added to the GreatdecTicker variable
-            If ws.Cells(PercentChange + 1, 11).Value < GreatDecrease Then
-            GreatDecrease = ws.Cells(PercentChange + 1, 11).Value
-            GreatDecTicker = ws.Cells(TickerSummary + 1, 9).Value
+            'If the percent decrease was less than the previous worst ticker category, then the variables GreatDecrease 
+            'and GreatDecTicker are updated
+            If ws.Cells(PercentChange, 11).Value < GreatDecrease Then
+            GreatDecrease = ws.Cells(PercentChange, 11).Value
+            GreatDecTicker = ws.Cells(TickerSummary, 9).Value
             End If
             
-            'If the total volume was greater than the previous best ticker category, then it's added to the GreatVolTicker variable
-            If ws.Cells(TotalVolume + 1, 12) > GreatVolume Then
-            GreatVolume = ws.Cells(TotalVolume + 1, 12)
-            GreatVolTicker = ws.Cells(TickerSummary + 1, 9).Value
+            'If the total volume was greater than the previous best ticker category, then the variables GreatVolume 
+            'and GreatVolTicker are updated.
+            If ws.Cells(TotalVolume, 12) > GreatVolume Then
+            GreatVolume = ws.Cells(TotalVolume, 12)
+            GreatVolTicker = ws.Cells(TickerSummary, 9).Value
             End If
         
         'Resetting data containing variables
-        DayStockChange = 0
-        NightStockChange = 0
-        DayPercentChange = 0
-        NightPercentChange = 0
+        FirstOpenStock = 0
+        FinalCloseStock = 0
         Volume = 0
         
         'Moving down to the next row of summary columns
@@ -102,38 +102,34 @@ Sub StockSummary()
         PercentChange = PercentChange + 1
         TotalVolume = TotalVolume + 1
         
-        Else
-            'Adding up the total stock change (positive or negative) over the previous night
-            If NightStockChange <> 0 And DayStockChange <> 0 Then
-            NightStockChange = NightStockChange + ((ws.Cells(i, OpenCol).Value) - (ws.Cells(i - 1, CloseCol).Value))
-            NightPercentChange = NightPercentChange + (NightStockChange / ((ws.Cells(i - 1, ClosedCol).Value) * 100))
+        'If it's the same ticker, then we just need to add up the volume or get the FirstOpenStock if this is the very
+        'first line of the new stock
+        Else:
+            If FirstOpenStock = 0 Then
+            FirstOpenStock = ws.Cells(i, OpenCol).Value
             End If
         
-        'Adding up the total stock change (positive or negative) over the day
-        DayStockChange = DayStockChange + ((ws.Cells(i, CloseCol).Value) - (ws.Cells(i, OpenCol).Value))
-        DayPercentChange = DayPercentChange + (DayStockChange / ((ws.Cells(i, OpenCol).Value) * 100))
-        
-        'Adding the new volume of the day to the previous total
-        Volume = Volume + (ws.Cells(i, VolumeCol).Value)
+            Volume = Volume + (ws.Cells(i, VolumeCol).Value)
         
         End If
         
     Next i
-    Next ws
     
     'Tabulating the final greatest increase/decrease/volume on the first sheet
-    Sheet1.Cells(1, 17).Value = "Ticker"
-    Sheet1.Cells(1, 18).Value = "Value"
-    Sheet1.Cells(2, 16).Value = "Greatest % Increase"
-    Sheet1.Cells(3, 16).Value = "Greatest % Decrease"
-    Sheet1.Cells(4, 16).Value = "Greatest Total Volume"
-    Sheet1.Range("Q2").Value = GreatIncTicker
-    Sheet1.Range("R2").Value = GreatIncrease
-    Sheet1.Range("Q3").Value = GreatDecTicker
-    Sheet1.Range("R3").Value = GreatDecrease
-    Sheet1.Range("Q4").Value = GreatVolTicker
-    Sheet1.Range("R4").Value = GreatVolume
-    Sheet1.Columns("P:R").AutoFit
-    Sheet1.Range("R2:R3").NumberFormat = "00.00%"
+    ws.Cells(1, 17).Value = "Ticker"
+    ws.Cells(1, 18).Value = "Value"
+    ws.Cells(2, 16).Value = "Greatest % Increase"
+    ws.Cells(3, 16).Value = "Greatest % Decrease"
+    ws.Cells(4, 16).Value = "Greatest Total Volume"
+    ws.Range("Q2").Value = GreatIncTicker
+    ws.Range("R2").Value = GreatIncrease
+    ws.Range("Q3").Value = GreatDecTicker
+    ws.Range("R3").Value = GreatDecrease
+    ws.Range("Q4").Value = GreatVolTicker
+    ws.Range("R4").Value = GreatVolume
+    ws.Columns("P:R").AutoFit
+    ws.Range("R2:R3").NumberFormat = "00.00%"
+    
+    Next ws
     
 End Sub
